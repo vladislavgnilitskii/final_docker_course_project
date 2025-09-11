@@ -1,18 +1,46 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const waitOn = require('wait-on');
 const app = express();
+
+require('dotenv').config();
 
 app.use(express.json());
 app.use(cors());
 
+const PORT = process.env.BACKEND_PORT || 3001;
+const DB_HOST = process.env.DB_HOST;
+const DB_USER = process.env.POSTGRES_USER;
+const DB_PASS = process.env.POSTGRES_PASSWORD;
+const DB_NAME = process.env.POSTGRES_DB;
+const DB_PORT = process.env.DB_PORT || 5432;
+
+if (!DB_HOST || !DB_USER || !DB_PASS || !DB_NAME) {
+  console.error('Missing required environment variables: DB_HOST, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB');
+  process.exit(1);
+}
+
 const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'crm_db',
-  password: 'password',
-  port: 5432,
+  user: DB_USER,
+  host: DB_HOST,
+  database: DB_NAME,
+  password: DB_PASS,
+  port: DB_PORT,
 });
+
+async function waitForDatabase() {
+  try {
+    await waitOn({
+      resources: [`tcp:${DB_HOST}:${DB_PORT}`],
+      timeout: 30000, // Ждать до 30 секунд
+    });
+    console.log('Database is ready');
+  } catch (err) {
+    console.error('Database connection failed:', err);
+    process.exit(1);
+  }
+}
 
 app.get('/api/clients', async (req, res) => {
   try {
@@ -38,6 +66,8 @@ app.post('/api/clients', async (req, res) => {
   }
 });
 
-app.listen(3001, () => {
-  console.log('Backend running on http://localhost:3001');
+waitForDatabase().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Backend running on http://localhost:${PORT}`);
+  });
 });

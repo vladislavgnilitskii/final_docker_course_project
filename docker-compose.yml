@@ -1,0 +1,60 @@
+services:
+  frontend:
+    build: ./frontend
+    image: frontend_crm_app:latest
+    ports:
+      - "${FRONTEND_PORT}:80"
+    networks:
+      - frontend_network
+    depends_on:
+      backend:
+        condition: service_started
+      database:
+        condition: service_healthy
+    restart: always
+  backend:
+    build: ./backend
+    image: backend_crm_app:latest
+    ports:
+      - "${BACKEND_PORT}:3001"
+    environment:
+      BACKEND_PORT: ${BACKEND_PORT}
+      DB_PORT: ${DB_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      DB_HOST: database
+    networks:
+      - frontend_network
+      - backend_network
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: always
+  database:
+    build: ./database
+    image: db_crm_app:latest
+    ports:
+      - "${DB_PORT}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend_network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+volumes:
+  postgres_data:
+networks:
+  backend_network:
+    driver: bridge
+  frontend_network:
+    driver: bridge
