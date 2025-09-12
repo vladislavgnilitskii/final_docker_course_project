@@ -132,4 +132,61 @@ networks:
 
 Также же хотел добавить то, что неплохо бы было добавить в курс побольше про depends_on и healthcheck в compose.
 
+### Настройка SSL/TLS для frontend (самоподписанный сертификат)
 
+В папке с проектом создал диру для сертификатов. Потом ввел команду для создания самоподписанного сертификата.
+
+```
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout certs/selfsigned.key -out certs/selfsigned.crt -subj "/CN=localhost"
+```
+
+После чего немного изменил docker-compose.yml в сервасе frontend, открыв порт и пробросил сертификаты.
+
+```
+   ports:  
+     - "${FRONTEND_PORT_HTTP}:80"  
+     - "${FRONTEND_PORT_HTTPS}:443"  
+   volumes:  
+     - ./certs:/etc/nginx/certs
+```
+
+Теперь изменим конфиг nginx.
+
+```
+server {  
+   listen 80;  
+   server_name localhost;  
+  
+   return 301 https://$host$request_uri;  
+}  
+  
+server {  
+   listen 443 ssl;  
+   server_name localhost;  
+  
+   ssl_certificate /etc/nginx/certs/selfsigned.crt;  
+   ssl_certificate_key /etc/nginx/certs/selfsigned.key;      
+  
+   root /usr/share/nginx/html;  
+   index index.html;  
+  
+   location / {  
+       try_files $uri /index.html;  
+   }  
+  
+   location /api/ {  
+       proxy_pass http://backend:3001/;  
+       proxy_http_version 1.1;  
+       proxy_set_header Upgrade $http_upgrade;  
+       proxy_set_header Connection "upgrade";  
+       proxy_set_header Host $host;  
+       proxy_cache_bypass $http_upgrade;  
+   }  
+}
+```
+
+После запускаем docker-compose.yml и переходим на localhost и принимаем предупреждение и переходим на наш localhost
+
+<img width="898" height="1068" alt="Pasted image 20250912203804" src="https://github.com/user-attachments/assets/55f581db-3edd-47b0-bac7-68d11ec64a10" />
+
+<img width="919" height="615" alt="Pasted image 20250912203839" src="https://github.com/user-attachments/assets/324b0fa5-76e7-49ef-aeaa-2db9f3ce1c60" />
