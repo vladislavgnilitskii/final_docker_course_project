@@ -2,11 +2,29 @@
 #### Backend
 У меня мало опыта в работе с js приложениями, поэтому я опирался на практики, и написал Dockefile для backendа так:
 
-![[Pasted image 20250910233753.png]]
+<img width="527" height="245" alt="Pasted image 20250910233753" src="https://github.com/user-attachments/assets/7a16f5b7-2dec-4dba-ad04-fa0c08ee627c" />
+
 
 Однако я получил ошибку о том, что  нет скрипта сборки. После чего немного погуглил, и понял, что сборка не нужна. Плюсом в самом контейнере нету диры src, и поэтому нужно было напрямую из /app запускать сервер.
 
-![[Pasted image 20250911002107.png]]
+```
+FROM node:16-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+
+FROM node:16-alpine
+WORKDIR /app
+RUN addgroup -S nodeuser \
+    && adduser -S nodeuser -G nodeuser
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app .
+RUN chown -R nodeuser:nodeuser /app
+EXPOSE 3001
+USER nodeuser
+CMD ["node", "server.js"]
+```
 
 После чего у меня собрался образ.
 
@@ -110,7 +128,7 @@ networks:
 
 После итогового запуска все заработало 
 
-![[Pasted image 20250912014513.png]]
+<img width="916" height="1080" alt="Pasted image 20250912014513" src="https://github.com/user-attachments/assets/6b80c627-496c-4403-b0aa-4f2accdc65fb" />
 
 Также же хотел добавить то, что неплохо бы было добавить в курс побольше про depends_on и healthcheck в compose.
 
