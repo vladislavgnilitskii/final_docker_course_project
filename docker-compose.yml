@@ -3,7 +3,10 @@ services:
     build: ./frontend
     image: frontend_crm_app:latest
     ports:
-      - "${FRONTEND_PORT}:80"
+      - "${FRONTEND_PORT_HTTP}:80"
+      - "${FRONTEND_PORT_HTTPS}:443"
+    volumes:
+      - ./certs:/etc/nginx/certs
     networks:
       - frontend_network
     depends_on:
